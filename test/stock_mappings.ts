@@ -21,9 +21,44 @@ export const IGNORED_SYMBOLS: string[] = [
     'INDO-RE2',
     'LOWVOL1',
     'LICNETFN50',
+    'AUTOIETF',
+    'BANKBEES',
+    'BANKETF',
+    'FINIETF',
+    'NIFTYETF',
+    'ARFIN',
+    'GAYAPROJ',
+    'PVTBANIETF',
+    'QNIFTY',
+    'QUALITY30',
+    'SENSEXADD',
+    'AXSENSEX',
+    'BSLNIFTY',
+    'ENIFTY',
+    'GOLDETF',
+    'MOM100',
+    'MOM50',
+    'PSUBNKBEES',
+    'SETFNIFBK',
+    'BANKETFADD',
+    'SBIETFPB',
+
+    // stock penny
+    'SWANDEF',
+    'TAKE',
+    'Univa',
+    'VCL',
+    'EASTSILK',
+    'RELIABLE',
+    'VENUSREM',
+    'GFSTEELS',
+    'UNIVAFOODS',
+
+    // major stock still not able find BHAV COPY
+    'M&MFIN',
+    'MOTHERSON',
 
 
-    // Add more symbols to ignore here
 ];
 
 
@@ -62,7 +97,6 @@ export const STOCK_MAPPINGS: Record<string, string> = {
     "MAANALU": "MAAN ALUMINIUM LIMITED",
     "MEGAFLEX": "MEGA FLEX PLASTICS LTD",
     "MOSERVICE": "MOTILALAMC - MOSERVICE",
-    "MOTHERSON": "MOTHERSON SUMI WRNG IND L",
     "MOVALUE": "MOTILALAMC - MOVALUE",
     "MSCIADD": "DSPAMC - MSCIADD",
     "MUTHOOTFIN": "MUTHOOT FINANCE LIMITED",
@@ -92,7 +126,34 @@ export const STOCK_MAPPINGS: Record<string, string> = {
     "GMRAIRPORT": "GMR AIRPORTS LIMITED",
     "LUMAXTECH": "LUMAX AUTO TECH LTD",
     "Mangalam Worldwide": "MANGALAM WORLDWIDE LTD",
-    "PAYTM": "ONE 97 COMMUNICATIONS LTD"
+    "PAYTM": "ONE 97 COMMUNICATIONS LTD",
+    "MWL": "MANGALAM WORLDWIDE LTD",
+    "POWERINDIA": "HITACHI ENERGY INDIA LTD",
+    'RICOAUTO': "RICO AUTO INDUSTRIES LTD",
+    "RNPL": "RENOL POLYCHEM LIMITED",
+    "SUNLITE": "SUNLITE RECYCLING IND LTD",
+    "TMCV": "TATA MOTORS LIMITED",
+    "ZFCVINDIA": "ZF COM VE CTR SYS IND LTD",
+    "ASHOKLEY": "ASHOK LEYLAND LTD",
+    "ASIANPAINT": "ASIAN PAINTS LIMITED",
+    "DCBBANK": "DCB BANK LIMITED",
+    "JAMNAAUTO": "JAMNA AUTO IND LTD",
+    "NEPTUNE": "NEPTUNE PETROCHEMICALS L",
+    "PARIN": "PARIN ENTERPRISES LIMITED",
+    "RPEL": "RAGHAV PRODUCTIVITY ENH L",
+    "UNIONBANK": "UNION BANK OF INDIA",
+    "WELINV": "WELSPUN INV & COMM LTD"
+
+
+
+
+
+
+
+
+
+
+
 
 
 
