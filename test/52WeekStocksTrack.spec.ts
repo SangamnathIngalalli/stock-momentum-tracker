@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { IGNORED_SYMBOLS } from './stock_mappings';
 
 const SRC_FILE = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\52WeekHigh.csv`;
 const DEST_FILE = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\My_Track.csv`;
@@ -88,6 +89,12 @@ test('update My_Track with new 52-week high stocks', async () => {
         const newPriceStr = cols[highIdx];
 
         if (!sym || !newPriceStr) continue;
+
+        // Check if symbol should be ignored
+        if (IGNORED_SYMBOLS.includes(sym)) {
+            console.log(`🚫 Ignored symbol: ${sym}`);
+            continue;
+        }
 
         // Task 1: If it's new (no entry in My_Track for that Symbol), add entry with current date
         if (!finalData.has(sym)) {
