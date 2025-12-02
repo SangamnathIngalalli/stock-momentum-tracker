@@ -2,6 +2,7 @@
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getMappedSymbol, hasMapping, isIgnored, STOCK_MAPPINGS, IGNORED_SYMBOLS } from './stock_mappings';
 
 const MY_TRACK_CSV = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\My_Track.csv`;
 const TODAY_CSV = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\today_price.csv`;
@@ -36,7 +37,11 @@ test('update My_Track.csv with latest close price & % change', async () => {
         }
     });
 
+    const mappingCount = Object.keys(STOCK_MAPPINGS).length;
+    const ignoredCountTotal = IGNORED_SYMBOLS.length;
     console.log(`📊 Loaded ${closeMap.size} stock prices from today_price.csv`);
+    console.log(`🗺️  Loaded ${mappingCount} symbol mappings from stock_mappings.ts`);
+    console.log(`🚫 Loaded ${ignoredCountTotal} ignored symbols from stock_mappings.ts`);
 
     // ---- Read existing My_Track.csv to preserve all columns ----
     const myTrackLines = fs.readFileSync(MY_TRACK_CSV, 'utf8').split(/\r?\n/).filter(Boolean);
@@ -63,7 +68,11 @@ test('update My_Track.csv with latest close price & % change', async () => {
     // ---- rebuild My_Track rows, preserving all columns ----
     const rowsOut: string[] = [updatedHeader.join(',')];
     let updatedCount = 0;
+    let mappedCount = 0;
     let notFoundCount = 0;
+    let skippedCount = 0;
+    const notFoundSymbols: string[] = []; // Track symbols not found even after mapping
+    const failedMappings: { original: string, mapped: string }[] = []; // Track mappings that didn't work
 
     myTrackLines.slice(1).forEach(line => {
         const cols = parse(line);
@@ -77,8 +86,35 @@ test('update My_Track.csv with latest close price & % change', async () => {
         const whStr = cols[whPriceIdx] || '';
         const wh = Number(whStr);
 
+        // Check if symbol is ignored
+        if (sym && isIgnored(sym)) {
+            skippedCount++;
+            // Keep existing values, don't update
+            if (!cols[currentPriceIdx] || cols[currentPriceIdx] === '') {
+                cols[currentPriceIdx] = whStr;
+            }
+            rowsOut.push(cols.join(','));
+            return;
+        }
+
         // Task 1: Update CurrentPrice from today_price.csv
-        const close = closeMap.get(sym!);
+        // First, try to find the symbol directly
+        let close = closeMap.get(sym!);
+        let usedMapping = false;
+
+        // If not found, try using the mapping
+        if (close === undefined && hasMapping(sym!)) {
+            const mappedSym = getMappedSymbol(sym!);
+            close = closeMap.get(mappedSym);
+            if (close !== undefined) {
+                usedMapping = true;
+                mappedCount++;
+            } else {
+                // Mapping exists but target symbol not found in today_price.csv
+                failedMappings.push({ original: sym!, mapped: mappedSym });
+            }
+        }
+
         if (close !== undefined) {
             cols[currentPriceIdx] = close.toString();
             // Task 2: Calculate PcntChange = ((CurrentPrice - New52WHprice) / New52WHprice) * 100
@@ -86,7 +122,10 @@ test('update My_Track.csv with latest close price & % change', async () => {
             cols[pcntChangeIdx] = pcnt;
             updatedCount++;
         } else {
-            // If stock not found in today_price.csv, keep existing value or use New52WHprice
+            // Symbol NOT found in today_price.csv (even after checking mapping)
+            notFoundSymbols.push(sym!);
+
+            // Keep existing value or use New52WHprice
             if (!cols[currentPriceIdx] || cols[currentPriceIdx] === '') {
                 cols[currentPriceIdx] = whStr;
             }
@@ -102,10 +141,44 @@ test('update My_Track.csv with latest close price & % change', async () => {
     // ---- overwrite My_Track.csv ----
     fs.writeFileSync(MY_TRACK_CSV, rowsOut.join('\n') + '\n');
 
+    // ---- Display Results ----
     console.log(`\n✅ Updated My_Track.csv with latest prices.`);
     console.log(`   📈 Updated: ${updatedCount} stocks with price from today_price.csv`);
+    console.log(`   🗺️  Via mapping: ${mappedCount} stocks found using symbol mappings`);
+    console.log(`   🚫 Skipped: ${skippedCount} ignored stocks`);
     console.log(`   ⚠️  Not found: ${notFoundCount} stocks (kept existing price or used New52WHprice)`);
     console.log(`   📊 Total stocks: ${rowsOut.length - 1}`);
     console.log(`   📋 Preserved ${updatedHeader.length} columns including any manually added ones.`);
+
+    // ---- RCA: Report Failed Mappings (Priority Issue) ----
+    if (failedMappings.length > 0) {
+        console.log(`\n❌ ERROR: The following ${failedMappings.length} symbol mapping(s) FAILED:`);
+        console.log(`   (Mapping exists in stock_mappings.ts, but the TARGET symbol was not found in today_price.csv)`);
+        console.log(`   ════════════════════════════════════════════════════════════`);
+        failedMappings.forEach((item, index) => {
+            console.log(`   ${index + 1}. ${item.original} ➡️  '${item.mapped}' (Not Found)`);
+        });
+        console.log(`   ════════════════════════════════════════════════════════════`);
+        console.log(`   💡 Suggestion: Check for typos in the TARGET symbol name in stock_mappings.ts`);
+    }
+
+    // ---- RCA: List symbols not found in today_price.csv (even after mapping) ----
+    if (notFoundSymbols.length > 0) {
+        console.log(`\n⚠️  WARNING: The following ${notFoundSymbols.length} symbol(s) were NOT found in today_price.csv:`);
+        console.log(`   (These symbols were checked against mappings but still not found)`);
+        console.log(`   ════════════════════════════════════════════════════════════`);
+        notFoundSymbols.forEach((symbol, index) => {
+            console.log(`   ${index + 1}. ${symbol}`);
+        });
+        console.log(`   ════════════════════════════════════════════════════════════`);
+        console.log(`   💡 RCA Suggestions:`);
+        console.log(`      - Add mapping in test/stock_mappings.ts for these symbols`);
+        console.log(`      - Add to IGNORED_SYMBOLS in test/stock_mappings.ts if they should be skipped`);
+        console.log(`      - Check if symbol names match exactly (case-sensitive)`);
+        console.log(`      - Verify today_price.csv contains all stocks`);
+    } else {
+        console.log(`\n✅ All symbols found and updated successfully!`);
+    }
+
     console.log(`\n🎯 My_Track.csv updated successfully at: ${MY_TRACK_CSV}`);
 });
