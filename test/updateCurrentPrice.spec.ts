@@ -43,6 +43,24 @@ test('update My_Track.csv with latest close price & % change', async () => {
     console.log(`🗺️  Loaded ${mappingCount} symbol mappings from stock_mappings.ts`);
     console.log(`🚫 Loaded ${ignoredCountTotal} ignored symbols from stock_mappings.ts`);
 
+    // ---- Proactive Mapping Health Check ----
+    // Check if all mapped target symbols actually exist in today_price.csv
+    const brokenMappings: string[] = [];
+    for (const [original, mapped] of Object.entries(STOCK_MAPPINGS)) {
+        if (!closeMap.has(mapped)) {
+            brokenMappings.push(`${original} -> '${mapped}'`);
+        }
+    }
+
+    if (brokenMappings.length > 0) {
+        console.log(`\n⚠️  MAPPING HEALTH CHECK: Found ${brokenMappings.length} potentially broken mappings.`);
+        console.log(`   (These target symbols are defined in stock_mappings.ts but NOT found in today_price.csv)`);
+        console.log(`   (This might be due to name changes in today_price.csv or delisted stocks)`);
+        brokenMappings.slice(0, 10).forEach(m => console.log(`   🔸 ${m}`));
+        if (brokenMappings.length > 10) console.log(`   ... and ${brokenMappings.length - 10} more.`);
+        console.log(`   ────────────────────────────────────────────────────────────`);
+    }
+
     // ---- Read existing My_Track.csv to preserve all columns ----
     const myTrackLines = fs.readFileSync(MY_TRACK_CSV, 'utf8').split(/\r?\n/).filter(Boolean);
     const existingHeader = myTrackLines[0]!;
