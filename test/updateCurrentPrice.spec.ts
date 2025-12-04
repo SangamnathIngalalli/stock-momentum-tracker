@@ -1,4 +1,3 @@
-// tests/updateCurrentPrice.spec.ts
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -11,16 +10,43 @@ test('update My_Track.csv with latest close price & % change', async () => {
     expect(fs.existsSync(MY_TRACK_CSV), `My_Track.csv not found: ${MY_TRACK_CSV}`).toBeTruthy();
     expect(fs.existsSync(TODAY_CSV), `today_price.csv not found: ${TODAY_CSV}`).toBeTruthy();
 
-    const parse = (line: string) => line.split(',').map(c => c.trim());
+    // ---- Helper function to parse CSV line (handles quoted fields) ----
+    const parseCSVLine = (line: string): string[] => {
+        const result: string[] = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        result.push(current.trim());
+        return result;
+    };
+
+    // ---- Helper to escape CSV fields ----
+    const escapeCSV = (field: string): string => {
+        if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+            return `"${field.replace(/"/g, '""')}"`;
+        }
+        return field;
+    };
 
     // ---- index today's close prices from today_price.csv ----
     const closeMap = new Map<string, number>();
     const todayLines = fs.readFileSync(TODAY_CSV, 'utf8')
         .split(/\r?\n/)
-        .filter(Boolean);
+        .filter(line => line.trim() !== '');
 
     // Find column indices in today_price.csv
-    const todayHeaders = parse(todayLines[0]!);
+    const todayHeaders = parseCSVLine(todayLines[0]);
     const securityIdx = todayHeaders.findIndex(h => h.toLowerCase().includes('security'));
     const closePricIdx = todayHeaders.findIndex(h => h.toLowerCase().includes('close_pric'));
 
@@ -28,7 +54,7 @@ test('update My_Track.csv with latest close price & % change', async () => {
 
     // Parse today_price.csv and build price map
     todayLines.slice(1).forEach(line => {
-        const cols = parse(line);
+        const cols = parseCSVLine(line);
         const sym = cols[securityIdx];
         const closeStr = cols[closePricIdx];
         const close = Number(closeStr);
@@ -44,7 +70,6 @@ test('update My_Track.csv with latest close price & % change', async () => {
     console.log(`🚫 Loaded ${ignoredCountTotal} ignored symbols from stock_mappings.ts`);
 
     // ---- Proactive Mapping Health Check ----
-    // Check if all mapped target symbols actually exist in today_price.csv
     const brokenMappings: string[] = [];
     for (const [original, mapped] of Object.entries(STOCK_MAPPINGS)) {
         if (!closeMap.has(mapped)) {
@@ -54,146 +79,131 @@ test('update My_Track.csv with latest close price & % change', async () => {
 
     if (brokenMappings.length > 0) {
         console.log(`\n⚠️  MAPPING HEALTH CHECK: Found ${brokenMappings.length} potentially broken mappings.`);
-        console.log(`   (These target symbols are defined in stock_mappings.ts but NOT found in today_price.csv)`);
-        console.log(`   (This might be due to name changes in today_price.csv or delisted stocks)`);
         brokenMappings.slice(0, 10).forEach(m => console.log(`   🔸 ${m}`));
         if (brokenMappings.length > 10) console.log(`   ... and ${brokenMappings.length - 10} more.`);
-        console.log(`   ────────────────────────────────────────────────────────────`);
     }
 
     // ---- Read existing My_Track.csv to preserve all columns ----
-    const myTrackLines = fs.readFileSync(MY_TRACK_CSV, 'utf8').split(/\r?\n/).filter(Boolean);
-    const existingHeader = myTrackLines[0]!;
-    const headerCols = parse(existingHeader);
+    const myTrackContent = fs.readFileSync(MY_TRACK_CSV, 'utf8');
+    const myTrackLines = myTrackContent.split(/\r?\n/).filter(line => line.trim() !== '');
 
-    // Find column indices in My_Track
-    const symIdx = headerCols.indexOf('Symbol');
-    const whPriceIdx = headerCols.indexOf('New52WHprice');
-    let currentPriceIdx = headerCols.indexOf('CurrentPrice');
-    let pcntChangeIdx = headerCols.indexOf('PcntChange');
+    let allColumns = parseCSVLine(myTrackLines[0]);
 
-    // If CurrentPrice or PcntChange columns don't exist, add them to header
-    let updatedHeader = headerCols.slice();
-    if (currentPriceIdx === -1) {
-        updatedHeader.push('CurrentPrice');
-        currentPriceIdx = updatedHeader.length - 1;
+    // Ensure CurrentPrice and PcntChange columns exist
+    if (!allColumns.includes('CurrentPrice')) allColumns.push('CurrentPrice');
+    if (!allColumns.includes('PcntChange')) allColumns.push('PcntChange');
+
+    // Parse all rows into Maps to preserve data
+    const existingRows: Map<string, string>[] = [];
+
+    // Use the header from the file (myTrackLines[0]) to map correctly
+    const fileHeaders = parseCSVLine(myTrackLines[0]);
+
+    for (let i = 1; i < myTrackLines.length; i++) {
+        const cols = parseCSVLine(myTrackLines[i]);
+        const rowMap = new Map<string, string>();
+
+        fileHeaders.forEach((colName, idx) => {
+            rowMap.set(colName, cols[idx] || '');
+        });
+
+        existingRows.push(rowMap);
     }
-    if (pcntChangeIdx === -1) {
-        updatedHeader.push('PcntChange');
-        pcntChangeIdx = updatedHeader.length - 1;
-    }
 
-    // ---- rebuild My_Track rows, preserving all columns ----
-    const rowsOut: string[] = [updatedHeader.join(',')];
+    // ---- Update rows ----
     let updatedCount = 0;
     let mappedCount = 0;
     let notFoundCount = 0;
     let skippedCount = 0;
-    const notFoundSymbols: string[] = []; // Track symbols not found even after mapping
-    const failedMappings: { original: string, mapped: string }[] = []; // Track mappings that didn't work
+    const notFoundSymbols: string[] = [];
+    const failedMappings: { original: string, mapped: string }[] = [];
 
-    myTrackLines.slice(1).forEach(line => {
-        const cols = parse(line);
-
-        // Ensure array has enough elements for all columns
-        while (cols.length < updatedHeader.length) {
-            cols.push('');
-        }
-
-        const sym = cols[symIdx];
-        const whStr = cols[whPriceIdx] || '';
+    for (const row of existingRows) {
+        const sym = row.get('Symbol');
+        const whStr = row.get('New52WHprice') || '';
         const wh = Number(whStr);
 
+        if (!sym) continue;
+
         // Check if symbol is ignored
-        if (sym && isIgnored(sym)) {
+        if (isIgnored(sym)) {
             skippedCount++;
-            // Keep existing values, don't update
-            if (!cols[currentPriceIdx] || cols[currentPriceIdx] === '') {
-                cols[currentPriceIdx] = whStr;
-            }
-            rowsOut.push(cols.join(','));
-            return;
+            // Ensure fields exist even if skipped
+            if (!row.has('CurrentPrice')) row.set('CurrentPrice', whStr);
+            if (!row.has('PcntChange')) row.set('PcntChange', '0.00');
+            continue;
         }
 
-        // Task 1: Update CurrentPrice from today_price.csv
-        // First, try to find the symbol directly
-        let close = closeMap.get(sym!);
-        let usedMapping = false;
+        // Try to find price
+        let close = closeMap.get(sym);
 
-        // If not found, try using the mapping
-        if (close === undefined && hasMapping(sym!)) {
-            const mappedSym = getMappedSymbol(sym!);
+        // If not found, try mapping
+        if (close === undefined && hasMapping(sym)) {
+            const mappedSym = getMappedSymbol(sym);
             close = closeMap.get(mappedSym);
             if (close !== undefined) {
-                usedMapping = true;
                 mappedCount++;
             } else {
-                // Mapping exists but target symbol not found in today_price.csv
-                failedMappings.push({ original: sym!, mapped: mappedSym });
+                failedMappings.push({ original: sym, mapped: mappedSym });
             }
         }
 
         if (close !== undefined) {
-            cols[currentPriceIdx] = close.toString();
-            // Task 2: Calculate PcntChange = ((CurrentPrice - New52WHprice) / New52WHprice) * 100
-            const pcnt = ((close - wh) / wh * 100).toFixed(2);
-            cols[pcntChangeIdx] = pcnt;
+            row.set('CurrentPrice', close.toString());
+            // Calculate % change
+            if (wh > 0) {
+                const pcnt = ((close - wh) / wh * 100).toFixed(2);
+                row.set('PcntChange', pcnt);
+            } else {
+                row.set('PcntChange', '0.00');
+            }
             updatedCount++;
         } else {
-            // Symbol NOT found in today_price.csv (even after checking mapping)
-            notFoundSymbols.push(sym!);
-
-            // Keep existing value or use New52WHprice
-            if (!cols[currentPriceIdx] || cols[currentPriceIdx] === '') {
-                cols[currentPriceIdx] = whStr;
+            notFoundSymbols.push(sym);
+            // Keep existing or use New52WHprice
+            if (!row.has('CurrentPrice') || row.get('CurrentPrice') === '') {
+                row.set('CurrentPrice', whStr);
             }
-            const currentPrice = Number(cols[currentPriceIdx] || whStr);
-            const pcnt = ((currentPrice - wh) / wh * 100).toFixed(2);
-            cols[pcntChangeIdx] = pcnt;
+
+            const currentPrice = Number(row.get('CurrentPrice') || whStr);
+            if (wh > 0) {
+                const pcnt = ((currentPrice - wh) / wh * 100).toFixed(2);
+                row.set('PcntChange', pcnt);
+            } else {
+                row.set('PcntChange', '0.00');
+            }
             notFoundCount++;
         }
+    }
 
-        rowsOut.push(cols.join(','));
-    });
+    // ---- Write back to My_Track.csv ----
+    const headerLine = allColumns.map(escapeCSV).join(',');
+    const rowsOut: string[] = [];
 
-    // ---- overwrite My_Track.csv ----
-    fs.writeFileSync(MY_TRACK_CSV, rowsOut.join('\n') + '\n');
+    for (const rowMap of existingRows) {
+        const rowValues = allColumns.map(col => escapeCSV(rowMap.get(col) || ''));
+        rowsOut.push(rowValues.join(','));
+    }
+
+    const fileContent = headerLine + '\n' + rowsOut.join('\n') + (rowsOut.length ? '\n' : '');
+    fs.writeFileSync(MY_TRACK_CSV, fileContent);
 
     // ---- Display Results ----
     console.log(`\n✅ Updated My_Track.csv with latest prices.`);
-    console.log(`   📈 Updated: ${updatedCount} stocks with price from today_price.csv`);
-    console.log(`   🗺️  Via mapping: ${mappedCount} stocks found using symbol mappings`);
+    console.log(`   📈 Updated: ${updatedCount} stocks`);
+    console.log(`   🗺️  Via mapping: ${mappedCount} stocks`);
     console.log(`   🚫 Skipped: ${skippedCount} ignored stocks`);
-    console.log(`   ⚠️  Not found: ${notFoundCount} stocks (kept existing price or used New52WHprice)`);
-    console.log(`   📊 Total stocks: ${rowsOut.length - 1}`);
-    console.log(`   📋 Preserved ${updatedHeader.length} columns including any manually added ones.`);
+    console.log(`   ⚠️  Not found: ${notFoundCount} stocks`);
+    console.log(`   📊 Total rows: ${existingRows.length}`);
+    console.log(`   📋 Preserved ${allColumns.length} columns: ${allColumns.join(', ')}`);
 
-    // ---- RCA: Report Failed Mappings (Priority Issue) ----
     if (failedMappings.length > 0) {
-        console.log(`\n❌ ERROR: The following ${failedMappings.length} symbol mapping(s) FAILED:`);
-        console.log(`   (Mapping exists in stock_mappings.ts, but the TARGET symbol was not found in today_price.csv)`);
-        console.log(`   ════════════════════════════════════════════════════════════`);
-        failedMappings.forEach((item, index) => {
-            console.log(`   ${index + 1}. ${item.original} ➡️  '${item.mapped}' (Not Found)`);
-        });
-        console.log(`   ════════════════════════════════════════════════════════════`);
-        console.log(`   💡 Suggestion: Check for typos in the TARGET symbol name in stock_mappings.ts`);
+        console.log(`\n❌ ERROR: ${failedMappings.length} mappings FAILED.`);
     }
 
-    // ---- RCA: List symbols not found in today_price.csv (even after mapping) ----
     if (notFoundSymbols.length > 0) {
-        console.log(`\n⚠️  WARNING: The following ${notFoundSymbols.length} symbol(s) were NOT found in today_price.csv:`);
-        console.log(`   (These symbols were checked against mappings but still not found)`);
-        console.log(`   ════════════════════════════════════════════════════════════`);
-        notFoundSymbols.forEach((symbol, index) => {
-            console.log(`   ${index + 1}. ${symbol}`);
-        });
-        console.log(`   ════════════════════════════════════════════════════════════`);
-        console.log(`   💡 RCA Suggestions:`);
-        console.log(`      - Add mapping in test/stock_mappings.ts for these symbols`);
-        console.log(`      - Add to IGNORED_SYMBOLS in test/stock_mappings.ts if they should be skipped`);
-        console.log(`      - Check if symbol names match exactly (case-sensitive)`);
-        console.log(`      - Verify today_price.csv contains all stocks`);
+        console.log(`\n⚠️  WARNING: ${notFoundSymbols.length} symbols NOT found in today_price.csv.`);
+        notFoundSymbols.forEach(s => console.log(`   🔸 ${s}`));
     } else {
         console.log(`\n✅ All symbols found and updated successfully!`);
     }
