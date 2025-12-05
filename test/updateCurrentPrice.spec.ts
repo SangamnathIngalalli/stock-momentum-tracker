@@ -1,13 +1,15 @@
+// tests/updateCurrentPrice.spec.ts
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as XLSX from 'xlsx';
 import { getMappedSymbol, hasMapping, isIgnored, STOCK_MAPPINGS, IGNORED_SYMBOLS } from './stock_mappings';
 
-const MY_TRACK_CSV = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\My_Track.csv`;
+const MY_TRACK_FILE = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\My_Track.xlsx`;
 const TODAY_CSV = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\today_price.csv`;
 
-test('update My_Track.csv with latest close price & % change', async () => {
-    expect(fs.existsSync(MY_TRACK_CSV), `My_Track.csv not found: ${MY_TRACK_CSV}`).toBeTruthy();
+test('update My_Track.xlsx with latest close price & % change', async () => {
+    expect(fs.existsSync(MY_TRACK_FILE), `My_Track.xlsx not found: ${MY_TRACK_FILE}`).toBeTruthy();
     expect(fs.existsSync(TODAY_CSV), `today_price.csv not found: ${TODAY_CSV}`).toBeTruthy();
 
     // ---- Helper function to parse CSV line (handles quoted fields) ----
@@ -31,14 +33,6 @@ test('update My_Track.csv with latest close price & % change', async () => {
         return result;
     };
 
-    // ---- Helper to escape CSV fields ----
-    const escapeCSV = (field: string): string => {
-        if (field.includes(',') || field.includes('"') || field.includes('\n')) {
-            return `"${field.replace(/"/g, '""')}"`;
-        }
-        return field;
-    };
-
     // ---- index today's close prices from today_price.csv ----
     const closeMap = new Map<string, number>();
     const todayLines = fs.readFileSync(TODAY_CSV, 'utf8')
@@ -46,9 +40,9 @@ test('update My_Track.csv with latest close price & % change', async () => {
         .filter(line => line.trim() !== '');
 
     // Find column indices in today_price.csv
-    const todayHeaders = parseCSVLine(todayLines[0]);
-    const securityIdx = todayHeaders.findIndex(h => h.toLowerCase().includes('security'));
-    const closePricIdx = todayHeaders.findIndex(h => h.toLowerCase().includes('close_pric'));
+    const todayHeaders = parseCSVLine(todayLines[0] || '');
+    const securityIdx = todayHeaders.findIndex((h: string) => h.toLowerCase().includes('security'));
+    const closePricIdx = todayHeaders.findIndex((h: string) => h.toLowerCase().includes('close_pric'));
 
     expect([securityIdx, closePricIdx]).not.toContain(-1);
 
@@ -83,31 +77,55 @@ test('update My_Track.csv with latest close price & % change', async () => {
         if (brokenMappings.length > 10) console.log(`   ... and ${brokenMappings.length - 10} more.`);
     }
 
-    // ---- Read existing My_Track.csv to preserve all columns ----
-    const myTrackContent = fs.readFileSync(MY_TRACK_CSV, 'utf8');
-    const myTrackLines = myTrackContent.split(/\r?\n/).filter(line => line.trim() !== '');
+    // ---- Read existing My_Track.xlsx to preserve all columns ----
+    const workbook = XLSX.readFile(MY_TRACK_FILE);
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) {
+        throw new Error('No sheets found in Excel file');
+    }
+    const worksheet = workbook.Sheets[sheetName];
+    if (!worksheet) {
+        throw new Error('Worksheet not found in Excel file');
+    }
 
-    let allColumns = parseCSVLine(myTrackLines[0]);
+    // Convert to array of arrays to preserve duplicate columns
+    const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
-    // Ensure CurrentPrice and PcntChange columns exist
-    if (!allColumns.includes('CurrentPrice')) allColumns.push('CurrentPrice');
-    if (!allColumns.includes('PcntChange')) allColumns.push('PcntChange');
+    if (data.length === 0 || !data[0]) {
+        throw new Error('Excel file is empty or has no header');
+    }
 
-    // Parse all rows into Maps to preserve data
-    const existingRows: Map<string, string>[] = [];
+    // Parse headers - preserve ALL columns including duplicates
+    const allColumns = data[0].map((col: any) => String(col || ''));
+    const originalColumnCount = allColumns.length;
 
-    // Use the header from the file (myTrackLines[0]) to map correctly
-    const fileHeaders = parseCSVLine(myTrackLines[0]);
+    // Find or add CurrentPrice and PcntChange columns
+    const symbolIdx = allColumns.findIndex((col: string) => col === 'Symbol');
+    const new52WHIdx = allColumns.findIndex((col: string) => col === 'New52WHprice');
+    let currentPriceIdx = allColumns.findIndex((col: string) => col === 'CurrentPrice');
+    let pcntChangeIdx = allColumns.findIndex((col: string) => col === 'PcntChange');
 
-    for (let i = 1; i < myTrackLines.length; i++) {
-        const cols = parseCSVLine(myTrackLines[i]);
-        const rowMap = new Map<string, string>();
+    if (currentPriceIdx === -1) {
+        currentPriceIdx = allColumns.length;
+        allColumns.push('CurrentPrice');
+    }
+    if (pcntChangeIdx === -1) {
+        pcntChangeIdx = allColumns.length;
+        allColumns.push('PcntChange');
+    }
 
-        fileHeaders.forEach((colName, idx) => {
-            rowMap.set(colName, cols[idx] || '');
-        });
+    // Parse all rows - store as arrays to preserve duplicate columns
+    const existingRows: string[][] = [];
 
-        existingRows.push(rowMap);
+    for (let i = 1; i < data.length; i++) {
+        const rowData = data[i];
+        if (!rowData) continue;
+        const cols = rowData.map((cell: any) => String(cell || ''));
+        // Pad with empty strings if row is shorter than header
+        while (cols.length < allColumns.length) {
+            cols.push('');
+        }
+        existingRows.push(cols);
     }
 
     // ---- Update rows ----
@@ -119,8 +137,8 @@ test('update My_Track.csv with latest close price & % change', async () => {
     const failedMappings: { original: string, mapped: string }[] = [];
 
     for (const row of existingRows) {
-        const sym = row.get('Symbol');
-        const whStr = row.get('New52WHprice') || '';
+        const sym = row[symbolIdx];
+        const whStr = row[new52WHIdx] || '';
         const wh = Number(whStr);
 
         if (!sym) continue;
@@ -129,8 +147,8 @@ test('update My_Track.csv with latest close price & % change', async () => {
         if (isIgnored(sym)) {
             skippedCount++;
             // Ensure fields exist even if skipped
-            if (!row.has('CurrentPrice')) row.set('CurrentPrice', whStr);
-            if (!row.has('PcntChange')) row.set('PcntChange', '0.00');
+            if (!row[currentPriceIdx]) row[currentPriceIdx] = whStr;
+            if (!row[pcntChangeIdx]) row[pcntChangeIdx] = '0.00';
             continue;
         }
 
@@ -149,53 +167,60 @@ test('update My_Track.csv with latest close price & % change', async () => {
         }
 
         if (close !== undefined) {
-            row.set('CurrentPrice', close.toString());
+            row[currentPriceIdx] = close.toString();
             // Calculate % change
             if (wh > 0) {
                 const pcnt = ((close - wh) / wh * 100).toFixed(2);
-                row.set('PcntChange', pcnt);
+                row[pcntChangeIdx] = pcnt;
             } else {
-                row.set('PcntChange', '0.00');
+                row[pcntChangeIdx] = '0.00';
             }
             updatedCount++;
         } else {
             notFoundSymbols.push(sym);
             // Keep existing or use New52WHprice
-            if (!row.has('CurrentPrice') || row.get('CurrentPrice') === '') {
-                row.set('CurrentPrice', whStr);
+            if (!row[currentPriceIdx]) {
+                row[currentPriceIdx] = whStr;
             }
 
-            const currentPrice = Number(row.get('CurrentPrice') || whStr);
+            const currentPrice = Number(row[currentPriceIdx] || whStr);
             if (wh > 0) {
                 const pcnt = ((currentPrice - wh) / wh * 100).toFixed(2);
-                row.set('PcntChange', pcnt);
+                row[pcntChangeIdx] = pcnt;
             } else {
-                row.set('PcntChange', '0.00');
+                row[pcntChangeIdx] = '0.00';
             }
             notFoundCount++;
         }
     }
 
-    // ---- Write back to My_Track.csv ----
-    const headerLine = allColumns.map(escapeCSV).join(',');
-    const rowsOut: string[] = [];
+    // ---- Write back to My_Track.xlsx ----
+    const outputData: any[][] = [allColumns];
 
-    for (const rowMap of existingRows) {
-        const rowValues = allColumns.map(col => escapeCSV(rowMap.get(col) || ''));
-        rowsOut.push(rowValues.join(','));
+    for (const row of existingRows) {
+        // Ensure row has all columns
+        while (row.length < allColumns.length) {
+            row.push('');
+        }
+        outputData.push(row);
     }
 
-    const fileContent = headerLine + '\n' + rowsOut.join('\n') + (rowsOut.length ? '\n' : '');
-    fs.writeFileSync(MY_TRACK_CSV, fileContent);
+    // Create workbook and worksheet
+    const newWorkbook = XLSX.utils.book_new();
+    const newWorksheet = XLSX.utils.aoa_to_sheet(outputData);
+    XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'My_Track');
+
+    // Write Excel file
+    XLSX.writeFile(newWorkbook, MY_TRACK_FILE);
 
     // ---- Display Results ----
-    console.log(`\n✅ Updated My_Track.csv with latest prices.`);
+    console.log(`\n✅ Updated My_Track.xlsx with latest prices.`);
     console.log(`   📈 Updated: ${updatedCount} stocks`);
     console.log(`   🗺️  Via mapping: ${mappedCount} stocks`);
     console.log(`   🚫 Skipped: ${skippedCount} ignored stocks`);
     console.log(`   ⚠️  Not found: ${notFoundCount} stocks`);
     console.log(`   📊 Total rows: ${existingRows.length}`);
-    console.log(`   📋 Preserved ${allColumns.length} columns: ${allColumns.join(', ')}`);
+    console.log(`   📋 Preserved ${allColumns.length} columns (${originalColumnCount} original + ${allColumns.length - originalColumnCount} added)`);
 
     if (failedMappings.length > 0) {
         console.log(`\n❌ ERROR: ${failedMappings.length} mappings FAILED.`);
@@ -208,5 +233,5 @@ test('update My_Track.csv with latest close price & % change', async () => {
         console.log(`\n✅ All symbols found and updated successfully!`);
     }
 
-    console.log(`\n🎯 My_Track.csv updated successfully at: ${MY_TRACK_CSV}`);
+    console.log(`\n🎯 My_Track.xlsx updated successfully at: ${MY_TRACK_FILE}`);
 });

@@ -1,15 +1,16 @@
 # Stock Momentum Tracker
 
-A comprehensive automation tool designed to assist swing traders by tracking stocks that hit their 52-week highs and monitoring their daily price movements. This project uses Playwright for automation and maintains a local CSV database (`My_Track.csv`) of tracked stocks with full preservation of manually added columns.
+A comprehensive automation tool designed to assist swing traders by tracking stocks that hit their 52-week highs and monitoring their daily price movements. This project uses Playwright for automation and maintains a local Excel database (`My_Track.xlsx`) of tracked stocks with full preservation of manually added columns.
 
 ## 🚀 Features
 
-* **52-Week High Tracking**: Automatically reads daily reports of stocks hitting 52-week highs and adds new entries to the master tracking list (`My_Track.csv`).
-* **Price Monitoring**: Updates the current price from `today_price.csv` and calculates percentage changes for all tracked stocks.
-* **Column Preservation**: Safeguards all manually added columns (MyResearch Date, fundamentalScore, status, Reason, Allocation Justification) during updates.
-* **Sequential Pipeline**: A robust test runner that executes the tracking and updating processes in the correct order.
-* **Duplicate Prevention**: Ensures stocks are not added multiple times to the master list.
-* **Data Persistence**: Maintains a history of when stocks were added and their initial breakout price.
+* **52-Week High Tracking**: Automatically reads daily reports of stocks hitting 52-week highs and adds new entries to the master tracking list.
+* **Strict Uniqueness**: Ensures strict "Unique Symbol" tracking. If a stock is already in your list (regardless of date), it won't be re-added, preventing duplicates.
+* **Price Monitoring**: Updates the current price from daily Bhavcopy `today_price.csv` and calculates percentage changes for all tracked stocks.
+* **Smart Sorting**: Automatically sorts your tracking sheet by Percentage Change (Ascending) to highlight underperforming stocks first.
+* **Dynamic Column Preservation**: Safeguards **ANY** manually added columns (e.g., WatchList, Score, Notes, etc.) during updates. You can add as many custom columns as you like.
+* **Robust Excel Handling**: Direct reading/writing of `.xlsx` files ensures formatting and data integrity are maintained.
+* **Sequential Pipeline**: A robust test runner that executes the tracking, updating, and sorting processes in the correct order.
 
 ## 🛠️ Prerequisites
 
@@ -33,31 +34,81 @@ A comprehensive automation tool designed to assist swing traders by tracking sto
 
 ## ⚙️ Configuration
 
-The scripts use hardcoded paths for input and output CSV files, tailored for a specific local environment (OneDrive).
+The scripts use hardcoded paths for input and output files, tailored for a specific local environment (OneDrive).
 
 **Important**: Before running, update the file paths in the following files to match your local setup:
 
 * `test/52WeekStocksTrack.spec.ts`:
   * `SRC_FILE`: Path to the daily `52WeekHigh.csv` report
-  * `DEST_FILE`: Path to your master `My_Track.csv`
+  * `DEST_FILE`: Path to your master `My_Track.xlsx`
 * `test/updateCurrentPrice.spec.ts`:
-  * `MY_TRACK_CSV`: Path to your master `My_Track.csv`
+  * `MY_TRACK_FILE`: Path to your master `My_Track.xlsx`
   * `TODAY_CSV`: Path to the daily `today_price.csv`
+* `test/sortMyTrack.spec.ts`:
+  * `MY_TRACK_FILE`: Path to your master `My_Track.xlsx`
+
+## 📂 Core Script Details
+
+This section explains the purpose and function of the key files in the `test/` directory.
+
+### 1. `test/SequentialTestRunner.ts`
+**Function:** The Main Orchestrator (The "One-Click" Solution).
+*   **Why it is used:** To execute the entire workflow in the correct sequence with a single command, ensuring data integrity.
+*   **Workflow Stages:**
+    1.  **Fix Header**: Checks `My_Track.xlsx` to ensure headers are clean and readable.
+    2.  **Track 52-Week Highs**: Adds new stocks from the daily report.
+    3.  **Update Prices**: Refreshes current prices for all tracked stocks.
+    4.  **Sort Results**: Sorts the final list by Percentage Change (Low -> High).
+*   **Features:** Provides a clean summary in the terminal and waits between stages to prevent file access conflicts.
+
+### 2. `test/52WeekStocksTrack.spec.ts`
+**Function:** Tracks new 52-week high stocks.
+*   **Why it is used:** To populate `My_Track.xlsx` with fresh stock ideas.
+*   **Key Logic:**
+    *   **Strict Uniqueness**: It checks if a symbol *already exists* in your file. If found, it skips adding it again, ensuring you have one unique entry per stock.
+    *   **Input**: Reads `52WeekHigh.csv`.
+    *   **Output**: Appends new rows to `My_Track.xlsx`.
+    *   **Preservation**: Reads all existing data first to ensure no manual columns are lost during the append process.
+
+### 3. `test/updateCurrentPrice.spec.ts`
+**Function:** Updates current market prices.
+*   **Why it is used:** To monitor performance (momentum) of your tracked stocks.
+*   **Key Logic:**
+    *   **Price Matching**: Reads the daily Bhavcopy (`today_price.csv`) and finds the matching closing price for each of your stocks.
+    *   **Percentage Calculation**: Calculates existing % change: `((CurrentPrice - New52WHprice) / New52WHprice) * 100`.
+    *   **Fuzzy Matching**: Uses `stock_mappings.ts` to handle complex name variations (e.g. 'M&M' vs 'MAHINDRA & MAHINDRA') if a direct match fails.
+    *   **Reporting**: Logs detailed success/failure stats, including which symbols were not found.
+
+### 4. `test/stock_mappings.ts`
+**Function:** The "Dictionary" for stock names.
+*   **Why it is used:** Stock data sources (NSE, Broker reports) often use different naming conventions.
+*   **Features:**
+    *   `STOCK_MAPPINGS`: A constant object mapping your tracking symbol to the official Bhavcopy name.
+    *   `IGNORED_SYMBOLS`: A list of symbols (like ETFs or Indices) that the system will deliberately ignore and never add to your tracker.
+
+### 5. `test/sortMyTrack.spec.ts`
+**Function:** Sorts the master tracking file.
+*   **Why it is used:** To help you quickly identify underperforming stocks or stocks near their breakout point.
+*   **Logic:**
+    *   Sorts by `PcntChange` column in **Ascending** order.
+    *   Stocks with negative or low percentage change appear at the top.
+    *   Stocks with high positive change appear at the bottom.
+    *   Ensures that sorting the logic applies to the *entire row*, keeping your manual notes aligned with the correct stock.
+
+### 6. `test/fixMyTrackHeader.spec.ts`
+**Function:** Data Integrity Safeguard.
+*   **Why it is used:** Sometimes manual editing in Excel can leave corruption or empty columns in the header row.
+*   **Logic:** Scans the header row of `My_Track.xlsx` and removes empty or invalid cells to prevent crashes in subsequent steps.
 
 ## ▶️ Usage
 
 ### Run the Full Pipeline (Recommended)
 
-Use the `SequentialTestRunner` to execute the entire workflow in the correct order:
+Use the `SequentialTestRunner` to execute the entire workflow:
 
 ```bash
 npx ts-node test/SequentialTestRunner.ts
 ```
-
-This will:
-1. **Track 52-Week Highs**: Add new stocks from the daily `52WeekHigh.csv` with the current date
-2. **Update Current Prices**: Update the latest prices from `today_price.csv` for all stocks in your list
-3. **Generate Summary**: Display a detailed report of the execution
 
 ### Run Individual Steps
 
@@ -73,27 +124,12 @@ npx playwright test test/52WeekStocksTrack.spec.ts
 npx playwright test test/updateCurrentPrice.spec.ts
 ```
 
-**Step 3: Verify Column Preservation**
+**Step 3: Sort File**
 ```bash
-npx playwright test test/verifyColumns.spec.ts
+npx playwright test test/sortMyTrack.spec.ts
 ```
 
-## 📂 Project Structure
-
-```
-stock-momentum-tracker/
-├── test/
-│   ├── 52WeekStocksTrack.spec.ts    # Script to add new 52-week high stocks
-│   ├── updateCurrentPrice.spec.ts   # Script to update current prices
-│   ├── verifyColumns.spec.ts        # Script to verify column preservation
-│   ├── SequentialTestRunner.ts      # Orchestrator for running tests in order
-│   └── Flow.spec.ts                 # Legacy flow test
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
-## 📝 CSV Format
+## 📝 CSV/Excel Format
 
 ### Input Files
 
@@ -111,60 +147,12 @@ G,ADANIPORTS,1549,1540,0.58
 
 ### Output File
 
-**My_Track.csv** (master tracking file):
+**My_Track.xlsx** (master tracking file):
 ```csv
-Symbol,Series,date,New52WHprice,CurrentPrice,PcntChange,MyResearch Date,fundamentalScore,status,Reason,Allocation Justification
-ADANIPORTS,EQ,12/1/2025,1549,1549,0.00,,,,,
-RELIANCE,EQ,11/28/2025,2450.00,2460.00,0.41,2025-12-01,85,Active,Strong fundamentals,High
+Symbol,Series,date,New52WHprice,CurrentPrice,PcntChange,WatchList,Score,MyResearch Date
+ADANIPORTS,EQ,12/1/2025,1549,1549,0.00,Yes,10,2025-12-01
+RELIANCE,EQ,11/28/2025,2450.00,2460.00,0.41,No,5,
 ```
-
-**Column Descriptions**:
-* `Symbol`: Stock symbol
-* `Series`: Series type (EQ, BE, SM, etc.)
-* `date`: Date when the stock was added to tracker (Entry Date)
-* `New52WHprice`: Price at which it hit the 52-week high
-* `CurrentPrice`: Latest price from `today_price.csv`
-* `PcntChange`: Percentage change = ((CurrentPrice - New52WHprice) / New52WHprice) × 100
-* `MyResearch Date`: Manually added - your research date
-* `fundamentalScore`: Manually added - fundamental analysis score
-* `status`: Manually added - stock status
-* `Reason`: Manually added - reason for tracking
-* `Allocation Justification`: Manually added - allocation notes
-
-## 🔒 Column Preservation
-
-All manually added columns are **100% preserved** during updates:
-* MyResearch Date
-* fundamentalScore
-* status
-* Reason
-* Allocation Justification
-
-The scripts only update specific columns (Symbol, Series, date, New52WHprice, CurrentPrice, PcntChange) and preserve all other data.
-
-## 📊 Workflow
-
-```
-Daily Workflow:
-1. Download 52WeekHigh.csv ────┐
-2. Download today_price.csv ───┤
-                               ├──> Run: npx ts-node test/SequentialTestRunner.ts
-                               │
-                               └──> My_Track.csv updated with:
-                                    • New stocks added
-                                    • Prices updated
-                                    • % changes calculated
-                                    • Manual columns preserved
-```
-
-## 🧪 Testing
-
-Verify that column preservation is working:
-```bash
-npx playwright test test/verifyColumns.spec.ts
-```
-
-This test confirms all 11 columns are present and intact in `My_Track.csv`.
 
 ## 📄 License
 

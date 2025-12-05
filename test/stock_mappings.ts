@@ -44,6 +44,20 @@ export const IGNORED_SYMBOLS: string[] = [
     'SBIETFPB',
     'EBANKNIFTY',
     'HDFCSENSEX',
+    'GROWWCAPM',
+    'MASPTOP50',
+    'MOMNC',
+    'SILVER360',
+    'ESG',
+    'NIF10GETF',
+    'NIFTYBEES',
+    'SCML',
+    'BSLSENETFG',
+    'CHOICEGOLD',
+
+
+
+
 
     // stock penny
     'SWANDEF',
@@ -61,6 +75,12 @@ export const IGNORED_SYMBOLS: string[] = [
     'TRANSTEEL',
     'UEL',
     'SALSTEEL',
+    'MEGAFLEX',
+    'EFACTOR',
+    'INFLUX',
+
+
+
 
 
     // major stock still not able find BHAV COPY
@@ -157,7 +177,19 @@ export const STOCK_MAPPINGS: Record<string, string> = {
     "JAYKAY": "JAYKAY ENTERPRISES LTD",
     "GREENLEAF": "GREENLEAF ENVIROTECH LTD",
     "JETFREIGHT": "JET FREIGHT LOGISTICS LTD",
-    "UNIVCABLES": "UNIVERSAL CABLES LTD"
+    "UNIVCABLES": "UNIVERSAL CABLES LTD",
+    "HINDCOPPER": "HINDUSTAN COPPER LTD",
+    "IMFA": "INDIAN METALS & FERRO",
+    "JKTYRE": "JK TYRE & INDUSTRIES LTD",
+    "MIDWESTLTD": "MIDWEST LIMITED",
+    "PTCIL": "PTC INDUSTRIES LIMITED",
+    "SAWALIYA": "SAWALIYA FOOD PRODUCTS L",
+    "STEL": "STEL HOLDINGS LIMITED",
+    "NATIONALUM": "NATIONAL ALUMINIUM CO LTD",
+    "SHRIPISTON": "SHRIRAM PIST. & RING LTD",
+
+
+
 
 
 

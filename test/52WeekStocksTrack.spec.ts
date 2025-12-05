@@ -1,40 +1,72 @@
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as XLSX from 'xlsx';
 import { IGNORED_SYMBOLS } from './stock_mappings';
 
 const SRC_FILE = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\52WeekHigh.csv`;
-const DEST_FILE = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\My_Track.csv`;
+const DEST_FILE = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\My_Track.xlsx`;
 
 const TODAY = new Date().toLocaleDateString('en-US'); // M/D/YYYY format
 
 test('update My_Track with new 52-week high stocks', async () => {
-    // ---- Helper function to parse CSV line ----
-    const parse = (line: string) => line.split(',').map(c => c.trim());
+    // ---- Helper function to parse CSV line (handles quoted fields) ----
+    const parseCSVLine = (line: string): string[] => {
+        const result: string[] = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        result.push(current.trim());
+        return result;
+    };
 
     // ---- Verify source file exists ----
     expect(fs.existsSync(SRC_FILE), `Source file not found: ${SRC_FILE}`).toBeTruthy();
 
-    // ---- Read existing My_Track data ----
+    // ---- Read existing My_Track data from Excel ----
     let allColumns: string[] = [];
-    let existingData = new Map<string, string[]>();
+    // Store rows as arrays to preserve duplicate column names
+    let existingRows: string[][] = [];
 
     if (fs.existsSync(DEST_FILE)) {
-        const lines = fs.readFileSync(DEST_FILE, 'utf8')
-            .split(/\r?\n/)
-            .filter(Boolean);
+        const workbook = XLSX.readFile(DEST_FILE);
+        const sheetName = workbook.SheetNames[0];
+        if (!sheetName) {
+            throw new Error('No sheets found in Excel file');
+        }
+        const worksheet = workbook.Sheets[sheetName];
+        if (!worksheet) {
+            throw new Error('Worksheet not found in Excel file');
+        }
 
-        if (lines.length > 0) {
-            // Read existing header to preserve all columns
-            allColumns = parse(lines[0]!);
+        // Convert to array of arrays to preserve duplicate columns
+        const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
-            // Parse existing data rows
-            for (let i = 1; i < lines.length; i++) {
-                const cols = parse(lines[i]!);
-                const symbol = cols[0]; // Symbol is always first column
-                if (symbol) {
-                    existingData.set(symbol, cols);
+        if (data.length > 0 && data[0]) {
+            // Read existing header to preserve ALL columns including duplicates
+            allColumns = data[0].map((col: any) => String(col || ''));
+
+            // Parse existing data rows as arrays
+            for (let i = 1; i < data.length; i++) {
+                const rowData = data[i];
+                if (!rowData) continue;
+                const row = rowData.map((cell: any) => String(cell || ''));
+                // Pad with empty strings if row is shorter than header
+                while (row.length < allColumns.length) {
+                    row.push('');
                 }
+                existingRows.push(row);
             }
         }
     } else {
@@ -50,40 +82,38 @@ test('update My_Track with new 52-week high stocks', async () => {
         }
     }
 
-    // Get column indices for My_Track
-    const symIdx = allColumns.indexOf('Symbol');
-    const seriesIdx = allColumns.indexOf('Series');
-    const dateIdx = allColumns.indexOf('date');
-    const priceIdx = allColumns.indexOf('New52WHprice');
+    // Find column indices
+    const symbolIdx = allColumns.findIndex((col: string) => col === 'Symbol');
+    const seriesIdx = allColumns.findIndex((col: string) => col === 'Series');
+    const dateIdx = allColumns.findIndex((col: string) => col === 'date');
+    const new52WHIdx = allColumns.findIndex((col: string) => col === 'New52WHprice');
 
     // ---- Read 52WeekHigh.csv file ----
-    const raw = fs.readFileSync(SRC_FILE, 'utf8')
-        .split(/\r?\n/)
-        .filter(Boolean);
+    const rawContent = fs.readFileSync(SRC_FILE, 'utf8');
+    const rawLines = rawContent.split(/\r?\n/).filter(line => line.trim() !== '');
 
-    const headers = parse(raw[0]!);
-    const srcSymIdx = headers.findIndex(h => h.toLowerCase().includes('symbol'));
-    const srcSerIdx = headers.findIndex(h => h.toLowerCase().includes('series'));
-    const highIdx = headers.findIndex(h => h.toLowerCase().includes('new 52w/h price'));
+    const srcHeaders = parseCSVLine(rawLines[0] || '');
+    const srcSymIdx = srcHeaders.findIndex(h => h.toLowerCase().includes('symbol'));
+    const srcSerIdx = srcHeaders.findIndex(h => h.toLowerCase().includes('series'));
+    const highIdx = srcHeaders.findIndex(h => h.toLowerCase().includes('new 52w/h price'));
 
     expect([srcSymIdx, srcSerIdx, highIdx]).not.toContain(-1);
 
-    // ---- Process source rows (Task 1: Add new entries with current date) ----
+    // ---- Process source rows ----
     let addedCount = 0;
-    const finalData = new Map<string, string[]>();
 
-    // First, copy all existing data to finalData
-    for (const [sym, cols] of existingData) {
-        // Ensure the row has enough columns
-        while (cols.length < allColumns.length) {
-            cols.push('');
+    // Build a set of existing Symbols to avoid adding if it ALREADY exists (regardless of date)
+    const existingEntries = new Set<string>();
+    existingRows.forEach((row: string[]) => {
+        const sym = row[symbolIdx];
+        if (sym) {
+            existingEntries.add(sym);
         }
-        finalData.set(sym, cols);
-    }
+    });
 
     // Process each stock from 52WeekHigh.csv
-    for (let i = 1; i < raw.length; i++) {
-        const cols = parse(raw[i]!);
+    for (let i = 1; i < rawLines.length; i++) {
+        const cols = parseCSVLine(rawLines[i] || '');
         const sym = cols[srcSymIdx];
         const series = cols[srcSerIdx];
         const newPriceStr = cols[highIdx];
@@ -96,35 +126,50 @@ test('update My_Track with new 52-week high stocks', async () => {
             continue;
         }
 
-        // Task 1: If it's new (no entry in My_Track for that Symbol), add entry with current date
-        if (!finalData.has(sym)) {
-            // New symbol - create a new row with all columns
-            const newRow = new Array(allColumns.length).fill('');
-            newRow[symIdx] = sym;
-            newRow[seriesIdx] = series;
-            newRow[dateIdx] = TODAY;
-            newRow[priceIdx] = newPriceStr;
-            finalData.set(sym, newRow);
-            addedCount++;
-            console.log(`➕ Added new stock: ${sym} with 52W/H price ${newPriceStr} on ${TODAY}`);
+        // Check if we already have this symbol (strict duplicate check)
+        if (existingEntries.has(sym)) {
+            // Already tracked, skip
+            continue;
         }
+
+        // Add new row - initialize with empty strings for all columns
+        const newRow: string[] = new Array(allColumns.length).fill('');
+
+        // Set specific values
+        newRow[symbolIdx] = sym;
+        newRow[seriesIdx] = series || '';
+        newRow[dateIdx] = TODAY;
+        newRow[new52WHIdx] = newPriceStr;
+
+        existingRows.push(newRow);
+        existingEntries.add(sym); // Prevent adding it again in this loop
+        addedCount++;
     }
 
-    // ---- Write back to My_Track.csv ----
-    const header = allColumns.join(',') + '\n';
-    const rows: string[] = [];
+    // ---- Write back to My_Track.xlsx ----
+    // Prepare data as array of arrays (header + rows)
+    const outputData: any[][] = [allColumns];
 
-    for (const [sym, data] of finalData) {
-        rows.push(data.join(','));
+    for (const row of existingRows) {
+        // Ensure row has all columns
+        while (row.length < allColumns.length) {
+            row.push('');
+        }
+        outputData.push(row);
     }
 
-    const fileContent = header + rows.join('\n') + (rows.length ? '\n' : '');
-    fs.writeFileSync(DEST_FILE, fileContent);
+    // Create workbook and worksheet
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet(outputData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'My_Track');
+
+    // Write Excel file
+    XLSX.writeFile(workbook, DEST_FILE);
 
     // ---- Log results ----
-    console.log(`\n✅ Processed ${raw.length - 1} source rows from 52WeekHigh.csv.`);
+    console.log(`\n✅ Processed ${rawLines.length - 1} source rows from 52WeekHigh.csv.`);
     console.log(`   📝 Added: ${addedCount} new stocks with current date (${TODAY}).`);
-    console.log(`   📊 Total stocks in My_Track.csv: ${finalData.size}`);
-    console.log(`   📋 Preserved ${allColumns.length} columns including any manually added ones.`);
-    console.log(`\n🎯 My_Track.csv updated successfully at: ${DEST_FILE}`);
+    console.log(`   📊 Total rows in My_Track.xlsx: ${existingRows.length}`);
+    console.log(`   📋 Preserved ${allColumns.length} columns`);
+    console.log(`\n🎯 My_Track.xlsx updated successfully at: ${DEST_FILE}`);
 });

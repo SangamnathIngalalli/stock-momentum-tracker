@@ -13,6 +13,11 @@ interface TestResult {
 class SequentialTestRunner {
     private tests = [
         {
+            name: 'Fix My_Track Header',
+            file: 'test/fixMyTrackHeader.spec.ts',
+            description: 'Validate and fix My_Track.csv header if corrupted (e.g., from Excel sorting)',
+        },
+        {
             name: 'Track 52-Week Highs',
             file: 'test/52WeekStocksTrack.spec.ts',
             description: 'Add new stocks hitting 52-week high to the master list',
@@ -21,6 +26,11 @@ class SequentialTestRunner {
             name: 'Update Current Prices',
             file: 'test/updateCurrentPrice.spec.ts',
             description: 'Update current prices for all tracked stocks',
+        },
+        {
+            name: 'Sort My_Track',
+            file: 'test/sortMyTrack.spec.ts',
+            description: 'Sort My_Track.xlsx by PcntChange (ascending)',
         },
     ];
 
