@@ -1,5 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const execAsync = promisify(exec);
 
@@ -37,6 +39,8 @@ class SequentialTestRunner {
     async runSequentialTests(): Promise<void> {
         console.log('🚀 Starting Sequential Stock-Market Pipeline\n');
         console.log('='.repeat(60));
+
+        await this.backupFiles();
 
         const results: TestResult[] = [];
 
@@ -108,6 +112,39 @@ class SequentialTestRunner {
         } else {
             console.log('\n⚠️  Some stages failed. Please check the errors above.');
         }
+    }
+
+    private async backupFiles(): Promise<void> {
+        const sourceDir = `C:\\Users\\Administrator\\OneDrive\\check Swing trading`;
+        const backupDir = path.join(sourceDir, 'backup');
+        const fileName = 'My_Track.xlsx';
+        const sourceFile = path.join(sourceDir, fileName);
+
+        console.log('\n📦 Starting Backup Process...');
+
+        try {
+            if (!fs.existsSync(sourceFile)) {
+                console.log(`⚠️  Warning: Source file not found at ${sourceFile}. Skipping backup.`);
+                return;
+            }
+
+            if (!fs.existsSync(backupDir)) {
+                console.log(`📁 Creating backup directory at ${backupDir}`);
+                fs.mkdirSync(backupDir, { recursive: true });
+            }
+
+            const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
+            const backupFileName = `My_Track_${timestamp}.xlsx`;
+            const backupFile = path.join(backupDir, backupFileName);
+
+            fs.copyFileSync(sourceFile, backupFile);
+            console.log(`✅ Backup created successfully: ${backupFileName}`);
+        } catch (error: any) {
+            console.error(`❌ Backup failed: ${error.message}`);
+            // We verify if we should stop the pipeline or continue. 
+            // Usually backup failure shouldn't stop the main process, but let's log it clearly.
+        }
+        console.log('-'.repeat(50));
     }
 }
 
