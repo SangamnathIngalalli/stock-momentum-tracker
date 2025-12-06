@@ -2,6 +2,7 @@
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as XLSX from 'xlsx';
+import { sanitizeRow } from './utils';
 
 const MY_TRACK_FILE = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\My_Track.xlsx`;
 
@@ -11,7 +12,7 @@ test('sort My_Track.xlsx by PcntChange (ascending)', async () => {
     console.log(`\n🔄 Reading My_Track.xlsx for sorting...`);
 
     // Read the Excel file
-    const workbook = XLSX.readFile(MY_TRACK_FILE, { cellDates: true });
+    const workbook = XLSX.readFile(MY_TRACK_FILE); // Reverted cellDates: true
     const sheetName = workbook.SheetNames[0];
 
     if (!sheetName) {
@@ -31,17 +32,12 @@ test('sort My_Track.xlsx by PcntChange (ascending)', async () => {
         return;
     }
 
-    // Sanitize dates - explicitly convert Date objects to strings
-    const data = rawData.map(row => row.map((cell: any) => {
-        if (cell instanceof Date) {
-            return cell.toLocaleDateString('en-US');
-        }
-        return cell;
-    }));
-
     // Extract header and rows
-    const header = data[0];
-    const rows = data.slice(1);
+    const header = rawData[0];
+    const dataRows = rawData.slice(1);
+
+    // Sanitize dates - explicitly convert serial numbers to strings using utils
+    const rows = dataRows.map(row => sanitizeRow(row, header));
 
     // Find PcntChange column index
     const pcntChangeIdx = header.findIndex((col: any) =>

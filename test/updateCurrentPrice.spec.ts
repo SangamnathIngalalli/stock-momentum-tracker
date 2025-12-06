@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { getMappedSymbol, hasMapping, isIgnored, STOCK_MAPPINGS, IGNORED_SYMBOLS } from './stock_mappings';
+import { sanitizeRow } from './utils';
 
 const MY_TRACK_FILE = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\My_Track.xlsx`;
 const TODAY_CSV = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\today_price.csv`;
@@ -78,7 +79,7 @@ test('update My_Track.xlsx with latest close price & % change', async () => {
     }
 
     // ---- Read existing My_Track.xlsx to preserve all columns ----
-    const workbook = XLSX.readFile(MY_TRACK_FILE, { cellDates: true });
+    const workbook = XLSX.readFile(MY_TRACK_FILE); // Reverted cellDates: true
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) {
         throw new Error('No sheets found in Excel file');
@@ -120,12 +121,10 @@ test('update My_Track.xlsx with latest close price & % change', async () => {
     for (let i = 1; i < data.length; i++) {
         const rowData = data[i];
         if (!rowData) continue;
-        const cols = rowData.map((cell: any) => {
-            if (cell instanceof Date) {
-                return cell.toLocaleDateString('en-US');
-            }
-            return String(cell || '');
-        });
+
+        // Sanitize row with robust date handling
+        const cols = sanitizeRow(rowData, allColumns);
+
         // Pad with empty strings if row is shorter than header
         while (cols.length < allColumns.length) {
             cols.push('');
