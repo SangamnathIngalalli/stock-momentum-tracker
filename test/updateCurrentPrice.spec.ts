@@ -78,7 +78,7 @@ test('update My_Track.xlsx with latest close price & % change', async () => {
     }
 
     // ---- Read existing My_Track.xlsx to preserve all columns ----
-    const workbook = XLSX.readFile(MY_TRACK_FILE);
+    const workbook = XLSX.readFile(MY_TRACK_FILE, { cellDates: true });
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) {
         throw new Error('No sheets found in Excel file');
@@ -120,7 +120,12 @@ test('update My_Track.xlsx with latest close price & % change', async () => {
     for (let i = 1; i < data.length; i++) {
         const rowData = data[i];
         if (!rowData) continue;
-        const cols = rowData.map((cell: any) => String(cell || ''));
+        const cols = rowData.map((cell: any) => {
+            if (cell instanceof Date) {
+                return cell.toLocaleDateString('en-US');
+            }
+            return String(cell || '');
+        });
         // Pad with empty strings if row is shorter than header
         while (cols.length < allColumns.length) {
             cols.push('');

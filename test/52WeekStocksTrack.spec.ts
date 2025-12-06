@@ -40,7 +40,7 @@ test('update My_Track with new 52-week high stocks', async () => {
     let existingRows: string[][] = [];
 
     if (fs.existsSync(DEST_FILE)) {
-        const workbook = XLSX.readFile(DEST_FILE);
+        const workbook = XLSX.readFile(DEST_FILE, { cellDates: true });
         const sheetName = workbook.SheetNames[0];
         if (!sheetName) {
             throw new Error('No sheets found in Excel file');
@@ -61,7 +61,12 @@ test('update My_Track with new 52-week high stocks', async () => {
             for (let i = 1; i < data.length; i++) {
                 const rowData = data[i];
                 if (!rowData) continue;
-                const row = rowData.map((cell: any) => String(cell || ''));
+                const row = rowData.map((cell: any) => {
+                    if (cell instanceof Date) {
+                        return cell.toLocaleDateString('en-US');
+                    }
+                    return String(cell || '');
+                });
                 // Pad with empty strings if row is shorter than header
                 while (row.length < allColumns.length) {
                     row.push('');

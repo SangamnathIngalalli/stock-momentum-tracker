@@ -11,7 +11,7 @@ test('sort My_Track.xlsx by PcntChange (ascending)', async () => {
     console.log(`\n🔄 Reading My_Track.xlsx for sorting...`);
 
     // Read the Excel file
-    const workbook = XLSX.readFile(MY_TRACK_FILE);
+    const workbook = XLSX.readFile(MY_TRACK_FILE, { cellDates: true });
     const sheetName = workbook.SheetNames[0];
 
     if (!sheetName) {
@@ -24,12 +24,20 @@ test('sort My_Track.xlsx by PcntChange (ascending)', async () => {
     }
 
     // Convert to array of arrays to preserve all columns and data
-    const data: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+    const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
-    if (data.length === 0 || !data[0]) {
+    if (rawData.length === 0 || !rawData[0]) {
         console.log('⚠️  My_Track.xlsx is empty or has no header. Nothing to sort.');
         return;
     }
+
+    // Sanitize dates - explicitly convert Date objects to strings
+    const data = rawData.map(row => row.map((cell: any) => {
+        if (cell instanceof Date) {
+            return cell.toLocaleDateString('en-US');
+        }
+        return cell;
+    }));
 
     // Extract header and rows
     const header = data[0];
