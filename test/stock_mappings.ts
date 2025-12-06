@@ -54,6 +54,8 @@ export const IGNORED_SYMBOLS: string[] = [
     'SCML',
     'BSLSENETFG',
     'CHOICEGOLD',
+    'EQUAL200',
+    'HDFCMID150',
 
 
 
@@ -82,11 +84,19 @@ export const IGNORED_SYMBOLS: string[] = [
 
 
 
+    //new stocks
+    'KMEW',
+    'LEMERITE',
+
+
+
+
 
     // major stock still not able find BHAV COPY
     'M&MFIN',
     'MOTHERSON',
     'SOUTHWEST',
+    'SKFINDUS',
 
 
 
@@ -187,6 +197,7 @@ export const STOCK_MAPPINGS: Record<string, string> = {
     "STEL": "STEL HOLDINGS LIMITED",
     "NATIONALUM": "NATIONAL ALUMINIUM CO LTD",
     "SHRIPISTON": "SHRIRAM PIST. & RING LTD",
+    "SKFINDUS": "SKF INDIA LTD"
 
 
 
