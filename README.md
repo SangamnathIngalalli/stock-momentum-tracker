@@ -8,8 +8,8 @@ A comprehensive automation tool designed to assist swing traders by tracking sto
 * **Strict Uniqueness**: Ensures strict "Unique Symbol" tracking. If a stock is already in your list (regardless of date), it won't be re-added, preventing duplicates.
 * **Price Monitoring**: Updates the current price from daily Bhavcopy `today_price.csv` and calculates percentage changes for all tracked stocks.
 * **Smart Sorting**: Automatically sorts your tracking sheet by Percentage Change (Ascending) to highlight underperforming stocks first.
-* **Dynamic Column Preservation**: Safeguards **ANY** manually added columns (e.g., WatchList, Score, Notes, etc.) during updates. You can add as many custom columns as you like.
-* **Robust Excel Handling**: Direct reading/writing of `.xlsx` files ensures formatting and data integrity are maintained.
+* **Dynamic Column Preservation**: Safeguards **ANY** manually added columns (e.g., WatchList, Score, Notes, ResearchDate) during updates. You can add as many custom columns as you like.
+* **Robust Date Handling**: Uses advanced heuristics (via `utils.ts`) to ensure dates (like "12/6/2025") remain stable and aren't converted to Excel serial numbers (e.g., "45997") or shifted by timezones.
 * **Sequential Pipeline**: A robust test runner that executes the tracking, updating, and sorting processes in the correct order.
 
 ## 🛠️ Prerequisites
@@ -52,53 +52,56 @@ The scripts use hardcoded paths for input and output files, tailored for a speci
 This section explains the purpose and function of the key files in the `test/` directory.
 
 ### 1. `test/SequentialTestRunner.ts`
-**Function:** The Main Orchestrator (The "One-Click" Solution).
-*   **Why it is used:** To execute the entire workflow in the correct sequence with a single command, ensuring data integrity.
+**Role:** The Orchestrator (Pipeline Runner).
+*   **Purpose:** To execute the entire workflow in the correct sequence with a single command, ensuring data integrity.
 *   **Workflow Stages:**
-    1.  **Fix Header**: Checks `My_Track.xlsx` to ensure headers are clean and readable.
-    2.  **Track 52-Week Highs**: Adds new stocks from the daily report.
-    3.  **Update Prices**: Refreshes current prices for all tracked stocks.
-    4.  **Sort Results**: Sorts the final list by Percentage Change (Low -> High).
-*   **Features:** Provides a clean summary in the terminal and waits between stages to prevent file access conflicts.
+    1.  **Backup**: Creates a timestamped backup of `My_Track.xlsx` before touching it.
+    2.  **Fix Header**: Checks `My_Track.xlsx` to ensure headers are clean.
+    3.  **Track 52-Week Highs**: Adds new stocks from the daily report.
+    4.  **Update Prices**: Refreshes current prices for all tracked stocks.
+    5.  **Sort Results**: Sorts the final list by Percentage Change (Low -> High).
+*   **Key Feature:** Auto-backup prevents data loss.
 
 ### 2. `test/52WeekStocksTrack.spec.ts`
-**Function:** Tracks new 52-week high stocks.
-*   **Why it is used:** To populate `My_Track.xlsx` with fresh stock ideas.
+**Role:** The Scout (Finds New Stocks).
+*   **Purpose:** Reads the daily `52WeekHigh.csv` report and adds fresh stock ideas to `My_Track.xlsx`.
 *   **Key Logic:**
-    *   **Strict Uniqueness**: It checks if a symbol *already exists* in your file. If found, it skips adding it again, ensuring you have one unique entry per stock.
-    *   **Input**: Reads `52WeekHigh.csv`.
-    *   **Output**: Appends new rows to `My_Track.xlsx`.
-    *   **Preservation**: Reads all existing data first to ensure no manual columns are lost during the append process.
+    *   **Uniqueness Check**: Checks if a symbol *already exists* in your file. If found, it skips adding it again.
+    *   **Date Handling**: Uses `utils.ts` to ensure "ResearchDate" is preserved correctly.
+    *   **Ignored Symbols**: Skips symbols listed in `stock_mappings.ts` (e.g., NIFTYBEES).
 
 ### 3. `test/updateCurrentPrice.spec.ts`
-**Function:** Updates current market prices.
-*   **Why it is used:** To monitor performance (momentum) of your tracked stocks.
+**Role:** The Analyst (Updates Data).
+*   **Purpose:** Monitors the performance (momentum) of your tracked stocks by updating their latest price.
 *   **Key Logic:**
-    *   **Price Matching**: Reads the daily Bhavcopy (`today_price.csv`) and finds the matching closing price for each of your stocks.
-    *   **Percentage Calculation**: Calculates existing % change: `((CurrentPrice - New52WHprice) / New52WHprice) * 100`.
-    *   **Fuzzy Matching**: Uses `stock_mappings.ts` to handle complex name variations (e.g. 'M&M' vs 'MAHINDRA & MAHINDRA') if a direct match fails.
-    *   **Reporting**: Logs detailed success/failure stats, including which symbols were not found.
+    *   **Price Matching**: Reads `today_price.csv` (Bhavcopy) to find closing prices.
+    *   **Stats**: Updates `CurrentPrice`, `New52WHprice` (if a new high is hit), and `PcntChange`.
+    *   **Fuzzy Matching**: Uses `stock_mappings.ts` to handle complex name variations (e.g. 'M&M' vs 'MAHINDRA & MAHINDRA').
 
-### 4. `test/stock_mappings.ts`
-**Function:** The "Dictionary" for stock names.
-*   **Why it is used:** Stock data sources (NSE, Broker reports) often use different naming conventions.
-*   **Features:**
-    *   `STOCK_MAPPINGS`: A constant object mapping your tracking symbol to the official Bhavcopy name.
-    *   `IGNORED_SYMBOLS`: A list of symbols (like ETFs or Indices) that the system will deliberately ignore and never add to your tracker.
+### 4. `test/sortMyTrack.spec.ts`
+**Role:** The Organizer (Sorts List).
+*   **Purpose:** Keeps your tracking sheet organized so you see the most critical stocks first.
+*   **Key Logic:**
+    *   Sorts by `PcntChange` in **Ascending** order (Underperforming -> Outperforming).
+    *   Preserves all manual data row-by-row.
+    *   **Sanitization**: Re-applies date fixes before saving to ensure sorting didn't break date formats.
 
-### 5. `test/sortMyTrack.spec.ts`
-**Function:** Sorts the master tracking file.
-*   **Why it is used:** To help you quickly identify underperforming stocks or stocks near their breakout point.
-*   **Logic:**
-    *   Sorts by `PcntChange` column in **Ascending** order.
-    *   Stocks with negative or low percentage change appear at the top.
-    *   Stocks with high positive change appear at the bottom.
-    *   Ensures that sorting the logic applies to the *entire row*, keeping your manual notes aligned with the correct stock.
+### 5. `test/fixMyTrackHeader.spec.ts`
+**Role:** The Medic (Fixes Corruption).
+*   **Purpose:** Automated check to fix common Excel header corruptions (like empty columns) that happen during manual editing.
 
-### 6. `test/fixMyTrackHeader.spec.ts`
-**Function:** Data Integrity Safeguard.
-*   **Why it is used:** Sometimes manual editing in Excel can leave corruption or empty columns in the header row.
-*   **Logic:** Scans the header row of `My_Track.xlsx` and removes empty or invalid cells to prevent crashes in subsequent steps.
+### 6. `test/stock_mappings.ts`
+**Role:** The Dictionary (Config).
+*   **Purpose:** Configuration file for handling stock name discrepancies and rules.
+*   **Contents:**
+    *   `STOCK_MAPPINGS`: Dictionary mapping 'Your Symbol' -> 'Bhavcopy Symbol'.
+    *   `IGNORED_SYMBOLS`: List of symbols to strictly ignore (ETFs, Indices, etc.).
+
+### 7. `test/utils.ts`
+**Role:** The Fixer (Date Helper).
+*   **Purpose:** A robust utility library for handling Excel data quirks.
+*   **Key Function:** `sanitizeRow` & `formatExcelDate`.
+    *   **Problem Solved**: Excel often stores dates as "General" numbers (e.g., 45997). This converts them back to readable dates ("12/6/2025") using mathematical calculation (`XLSX.SSF`), ensuring 100% stability and no timezone randomness.
 
 ## ▶️ Usage
 
@@ -150,7 +153,7 @@ G,ADANIPORTS,1549,1540,0.58
 **My_Track.xlsx** (master tracking file):
 ```csv
 Symbol,Series,date,New52WHprice,CurrentPrice,PcntChange,WatchList,Score,MyResearch Date
-ADANIPORTS,EQ,12/1/2025,1549,1549,0.00,Yes,10,2025-12-01
+ADANIPORTS,EQ,12/1/2025,1549,1549,0.00,Yes,10,12/01/2025
 RELIANCE,EQ,11/28/2025,2450.00,2460.00,0.41,No,5,
 ```
 
