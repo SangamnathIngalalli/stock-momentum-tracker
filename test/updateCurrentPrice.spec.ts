@@ -138,8 +138,8 @@ test('update My_Track.xlsx with latest close price & % change', async () => {
 
     for (const row of existingRows) {
         const sym = row[symbolIdx];
-        const whStr = row[new52WHIdx] || '';
-        const wh = Number(whStr);
+        let whStr = row[new52WHIdx] || ''; // Use let to allow updating
+        let wh = Number(whStr);
 
         if (!sym) continue;
 
@@ -167,6 +167,14 @@ test('update My_Track.xlsx with latest close price & % change', async () => {
         }
 
         if (close !== undefined) {
+            // ---- NEW: Check if we hit a new 52-week high ----
+            if (close > wh) {
+                row[new52WHIdx] = close.toString();
+                wh = close; // Update local variable so % diff uses new high (which is 0%)
+                whStr = close.toString();
+                console.log(`   🚀 NEW HIGH: ${sym} updated from ${whStr} to ${close}`);
+            }
+
             row[currentPriceIdx] = close.toString();
             // Calculate % change
             if (wh > 0) {
