@@ -56,6 +56,8 @@ export const IGNORED_SYMBOLS: string[] = [
     'CHOICEGOLD',
     'EQUAL200',
     'HDFCMID150',
+    'HDFCGROWTH',
+
 
 
 
@@ -87,6 +89,7 @@ export const IGNORED_SYMBOLS: string[] = [
     //new stocks
     'KMEW',
     'LEMERITE',
+    'SAWALIYA',
 
 
 
@@ -97,6 +100,19 @@ export const IGNORED_SYMBOLS: string[] = [
     'MOTHERSON',
     'SOUTHWEST',
     'SKFINDUS',
+
+
+    // low score stocks after 6 months check that is good score or not
+    'JAYKAY', // new and low score = 44 ON 6/12/2025
+    'DELPHIFX', //low score = 56 ON 7/12/2025
+
+
+
+
+
+
+    // 🚨 SECTOR GATE STATUS: ❌ FAIL
+    'JETFREIGHT',
 
 
 
