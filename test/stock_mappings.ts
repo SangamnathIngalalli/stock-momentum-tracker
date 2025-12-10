@@ -57,6 +57,28 @@ export const IGNORED_SYMBOLS: string[] = [
     'EQUAL200',
     'HDFCMID150',
     'HDFCGROWTH',
+    'AXISNIFTY',
+    'BBNPNBETF',
+    'GROWWPOWER',
+    'IDFNIFTYET',
+    'LOWVOLIETF',
+    'LTGILTBEES',
+    'LTGILTCASE',
+    'TOP10ADD',
+    'QUAL30IETF',
+    'TOP15IETF',
+    'SBISILVER',
+    'SILVER1',
+    'TATSILV',
+
+
+
+
+
+
+
+
+
 
 
 
@@ -82,6 +104,21 @@ export const IGNORED_SYMBOLS: string[] = [
     'MEGAFLEX',
     'EFACTOR',
     'INFLUX',
+    'CSSL',
+    'INVICTA',
+    'SPEB',
+    'TEAMGTY',
+    'SACHEEROME',
+    'NEOCHEM',
+    'KNAGRI',
+    'SHRIKANHA',
+    'VIDYAWIRES',
+
+
+
+
+
+
 
 
 
@@ -90,6 +127,7 @@ export const IGNORED_SYMBOLS: string[] = [
     'KMEW',
     'LEMERITE',
     'SAWALIYA',
+    'MEESHO',
 
 
 
@@ -100,10 +138,14 @@ export const IGNORED_SYMBOLS: string[] = [
     'MOTHERSON',
     'SOUTHWEST',
     'SKFINDUS',
+    'RMDRIP',
+    'AEQUS',
+
+
 
 
     // low score stocks after 6 months check that is good score or not
-    'JAYKAY', // new and low score = 44 ON 6/12/2025
+    'JAYKAY', // low score = 44 ON 6/12/2025
     'DELPHIFX', //low score = 56 ON 7/12/2025
 
 
@@ -212,6 +254,17 @@ export const STOCK_MAPPINGS: Record<string, string> = {
     "SHRIPISTON": "SHRIRAM PIST. & RING LTD",
     "SKFINDUS": "SKF INDIA LTD",
     "IEX": "INDIAN ENERGY EXC LTD",
+    "SUNPHARMA": "SUN PHARMACEUTICAL IND L",
+    "ARVEE": "ARVEE LABORATORIES I LTD",
+    "DREDGECORP": "DREDGING CORP OF INDIA",
+    "ELDEHSG": "ELDECO HSG & IND LTD.",
+    "MCX": "MULTI COMMODITY EXCHANGE",
+    "EICHERMOT": "EICHER MOTORS LTD",
+    "JINDALPHOT": "JINDAL PHOTO LIMITED",
+    "PFOCUS": "PRIME FOCUS LIMITED",
+
+
+    // "":"",
 
 
 
@@ -223,18 +276,6 @@ export const STOCK_MAPPINGS: Record<string, string> = {
 
 
 
-
-
-
-
-
-
-
-
-    // Uncomment and add more mappings as needed:
-    // 'RIL': 'RELIANCE INDUSTRIES LTD.',
-    // 'TCS': 'TATA CONSULTANCY SER',
-    // 'INFY': 'INFOSYS LTD.',
 };
 
 /**
