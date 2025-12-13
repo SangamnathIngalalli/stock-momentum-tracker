@@ -147,6 +147,7 @@ test('update My_Track with new 52-week high stocks', async () => {
 
         existingRows.push(newRow);
         existingEntries.add(sym); // Prevent adding it again in this loop
+        console.log(`   ➕ Added new stock: ${sym}`);
         addedCount++;
     }
 
