@@ -70,6 +70,38 @@ export const IGNORED_SYMBOLS: string[] = [
     'SBISILVER',
     'SILVER1',
     'TATSILV',
+    'SETFGOLD',
+    'TATAGOLD',
+    'HDFCNIFBAN',
+    'AXISBNKETF',
+    'AXISGOLD',
+    'EGOLD',
+    'ESILVER',
+    'GOLD1',
+    'GOLDBEES',
+    'GOLDBND',
+    'GOLDSHARE',
+    'GROWWGOLD',
+    'HDFCGOLD',
+    'METAL',
+    'QGOLDHALF',
+    'SILVER',
+    'SILVERADD',
+    'SILVERAG',
+    'SILVERBEES',
+    'SILVERBND',
+    'SILVERCASE',
+    'SILVERIETF',
+    'SMCGLOBAL',
+
+
+
+
+
+
+
+
+
 
 
 
@@ -101,7 +133,6 @@ export const IGNORED_SYMBOLS: string[] = [
     'TRANSTEEL',
     'UEL',
     'SALSTEEL',
-    'MEGAFLEX',
     'EFACTOR',
     'INFLUX',
     'CSSL',
@@ -113,6 +144,10 @@ export const IGNORED_SYMBOLS: string[] = [
     'KNAGRI',
     'SHRIKANHA',
     'VIDYAWIRES',
+    'MODINATUR',
+    'PATELEG-RE',
+
+
 
 
 
@@ -128,6 +163,12 @@ export const IGNORED_SYMBOLS: string[] = [
     'LEMERITE',
     'SAWALIYA',
     'MEESHO',
+    'MWL',
+    'RHETAN',
+    'ENCOMPAS',
+    'FWSTC',
+
+
 
 
 
@@ -147,6 +188,9 @@ export const IGNORED_SYMBOLS: string[] = [
     // low score stocks after 6 months check that is good score or not
     'JAYKAY', // low score = 44 ON 6/12/2025
     'DELPHIFX', //low score = 56 ON 7/12/2025
+    'DREDGECORP', //low score = 29 ON 12/12/2025
+    'RAMCOSYS', //low score = 42 ON 12/12/2025
+    'TMCV', //low score = 36 ON 12/12/2025
 
 
 
@@ -155,6 +199,10 @@ export const IGNORED_SYMBOLS: string[] = [
 
     // 🚨 SECTOR GATE STATUS: ❌ FAIL
     'JETFREIGHT',
+    'NEPTUNE', // 13/12/2025
+    'MODINATUR', // 13/12/2025
+    'SHEETAL', // 13/12/2025
+
 
 
 
@@ -262,6 +310,15 @@ export const STOCK_MAPPINGS: Record<string, string> = {
     "EICHERMOT": "EICHER MOTORS LTD",
     "JINDALPHOT": "JINDAL PHOTO LIMITED",
     "PFOCUS": "PRIME FOCUS LIMITED",
+    "ESABINDIA": "ESAB INDIA LTD",
+    "IDEA": "VODAFONE IDEA LIMITED",
+    "RAMCOSYS": "RAMCO SYSTEMS LTD.",
+    "RHETAN": "RHETAN TMT LIMITED",
+    "SAKAR": "SAKAR HEALTHCARE LIMITED",
+    "HCC-RE1": "HINDUSTAN CONSTRUCTION CO",
+    "HINDZINC": "HINDUSTAN ZINC LIMITED",
+
+
 
 
     // "":"",
