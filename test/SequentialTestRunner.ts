@@ -34,6 +34,11 @@ class SequentialTestRunner {
             file: 'test/sortMyTrack.spec.ts',
             description: 'Sort My_Track.xlsx by PcntChange (ascending)',
         },
+        {
+            name: 'Update Screener Stocks',
+            file: 'test/screenerStocks.spec.ts',
+            description: 'Update current prices and momentum for the custom screener_stocks.xlsx list',
+        },
     ];
 
     async runSequentialTests(): Promise<void> {

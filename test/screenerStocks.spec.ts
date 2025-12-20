@@ -6,10 +6,10 @@ import * as XLSX from 'xlsx';
 import { getMappedSymbol, hasMapping, isIgnored, STOCK_MAPPINGS, IGNORED_SYMBOLS } from './stock_mappings';
 import { sanitizeRow } from './utils';
 
-const SOURCE_FILE = `C:\\Users\\Administrator\\OneDrive\\Swing Trading\\screener\\Quality Growth with Institutional Support.xlsx`;
+const SOURCE_FILE = `C:\\Users\\Administrator\\OneDrive\\Swing Trading\\screener\\screener_stocks.xlsx`;
 const TODAY_CSV = `C:\\Users\\Administrator\\OneDrive\\check Swing trading\\today_price.csv`;
 
-test('update Quality Growth with Institutional Support tracker', async () => {
+test('update Screener Stocks tracker', async () => {
     expect(fs.existsSync(SOURCE_FILE), `Source file not found: ${SOURCE_FILE}`).toBeTruthy();
     expect(fs.existsSync(TODAY_CSV), `today_price.csv not found: ${TODAY_CSV}`).toBeTruthy();
 
@@ -68,7 +68,7 @@ test('update Quality Growth with Institutional Support tracker', async () => {
 
     console.log(`📊 Loaded ${closeMap.size} stock prices from today_price.csv`);
 
-    // ---- Read Excel file ----
+    // ---- Read Screener Stocks Excel file ----
     const workbook = XLSX.readFile(SOURCE_FILE);
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) throw new Error('No sheets found in Excel file');
@@ -93,26 +93,32 @@ test('update Quality Growth with Institutional Support tracker', async () => {
     let currentPriceIdx = findCol(['current price']);
     let pcntChangeIdx = findCol(['percentage change', 'pcnt change']);
 
-    // Fallback based on user description (B=1, C=2, D=3, E=4) ONLY if not found
-    if (symbolIdx === -1) symbolIdx = 1;
-    if (highPriceIdx === -1) highPriceIdx = 2;
-    if (currentPriceIdx === -1) currentPriceIdx = 3;
-    if (pcntChangeIdx === -1) pcntChangeIdx = 4;
+    // Fallback based on user description (mostly columns C, I, J, K based on standard layout)
+    // For this specific file based on check_headers: 
+    // NSE NAME is index 5 (Column F)
+    // high price is index 8 (Column I)
+    // current price is index 9 (Column J)
+    // percentage change is index 10 (Column K)
+
+    if (symbolIdx === -1) symbolIdx = 5;
+    if (highPriceIdx === -1) highPriceIdx = 8;
+    if (currentPriceIdx === -1) currentPriceIdx = 9;
+    if (pcntChangeIdx === -1) pcntChangeIdx = 10;
 
     // CRITICAL: Ensure indices are unique.
     const indices = [highPriceIdx, currentPriceIdx, pcntChangeIdx];
     const uniqueIndices = new Set(indices);
     if (uniqueIndices.size !== indices.length) {
         console.log('⚠️ Warning: Overlapping column indices detected. Adjusting to unique slots.');
-        if (highPriceIdx === pcntChangeIdx || highPriceIdx === currentPriceIdx) highPriceIdx = 2;
-        if (currentPriceIdx === highPriceIdx || currentPriceIdx === pcntChangeIdx) currentPriceIdx = 3;
-        if (pcntChangeIdx === highPriceIdx || pcntChangeIdx === currentPriceIdx) pcntChangeIdx = 4;
+        if (highPriceIdx === pcntChangeIdx || highPriceIdx === currentPriceIdx) highPriceIdx = 8;
+        if (currentPriceIdx === highPriceIdx || currentPriceIdx === pcntChangeIdx) currentPriceIdx = 9;
+        if (pcntChangeIdx === highPriceIdx || pcntChangeIdx === currentPriceIdx) pcntChangeIdx = 10;
     }
 
     // Ensure headers exist at these positions
     if (headers.length <= highPriceIdx) headers[highPriceIdx] = 'high price';
     if (headers.length <= currentPriceIdx) headers[currentPriceIdx] = 'current price';
-    if (headers.length <= pcntChangeIdx) headers[pcntChangeIdx] = 'pcnt change';
+    if (headers.length <= pcntChangeIdx) headers[pcntChangeIdx] = 'percentage change';
 
     console.log(`📍 Column Indices: Symbol=${symbolIdx}, HighPrice=${highPriceIdx}, CurrentPrice=${currentPriceIdx}, PcntChange=${pcntChangeIdx}`);
 
@@ -126,13 +132,11 @@ test('update Quality Growth with Institutional Support tracker', async () => {
     for (let row of existingRows) {
         if (!row) continue;
 
-        // Pad row and sanitize data types/dates
         const maxIdx = Math.max(symbolIdx, highPriceIdx, currentPriceIdx, pcntChangeIdx, headers.length - 1);
         while (row.length <= maxIdx) {
             row.push('');
         }
 
-        // Apply robust conversion to preserve original content formats
         row = sanitizeRow(row, headers);
 
         const rawSym = String(row[symbolIdx] || '').trim();
@@ -141,7 +145,6 @@ test('update Quality Growth with Institutional Support tracker', async () => {
             continue;
         }
 
-        // Handle mappings and exclusions
         let sym = rawSym;
         if (isIgnored(sym)) {
             updatedRows.push(row);
@@ -161,7 +164,6 @@ test('update Quality Growth with Institutional Support tracker', async () => {
                 row[highPriceIdx] = high.toString();
             }
 
-            // 1. Check if today's price is higher than high price
             if (close > high) {
                 row[highPriceIdx] = close.toString();
                 high = close;
@@ -169,10 +171,7 @@ test('update Quality Growth with Institutional Support tracker', async () => {
                 console.log(`   🚀 NEW HIGH: ${sym} (${high} -> ${close})`);
             }
 
-            // 2. Update current price
             row[currentPriceIdx] = close.toString();
-
-            // 3. Update percentage change
             const pcnt = ((close - high) / high * 100).toFixed(2);
             row[pcntChangeIdx] = pcnt;
 
@@ -183,14 +182,12 @@ test('update Quality Growth with Institutional Support tracker', async () => {
         updatedRows.push(row);
     }
 
-    // 4. Sort based on percentage change (most negative first)
     updatedRows.sort((a, b) => {
         const valA = parseFloat(a[pcntChangeIdx]) || 0;
         const valB = parseFloat(b[pcntChangeIdx]) || 0;
         return valA - valB;
     });
 
-    // Write back - PRESERVE ALL SHEETS
     const outputData = [data[0], ...updatedRows];
     const newWorksheet = XLSX.utils.aoa_to_sheet(outputData);
     workbook.Sheets[sheetName] = newWorksheet;

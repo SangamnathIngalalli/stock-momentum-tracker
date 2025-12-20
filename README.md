@@ -7,7 +7,7 @@ A comprehensive automation tool designed to assist swing traders by tracking sto
 * **52-Week High Tracking**: Automatically reads daily reports of stocks hitting 52-week highs and adds new entries to the master tracking list.
 * **Strict Uniqueness**: Ensures strict "Unique Symbol" tracking. If a stock is already in your list (regardless of date), it won't be re-added, preventing duplicates.
 * **Price Monitoring**: Updates the current price from daily Bhavcopy `today_price.csv` and calculates percentage changes for all tracked stocks.
-* **Specialist Momentum Trackers**: Dedicated automation for High ROIC, Bull Stocks with FII Buy, and Quality Growth lists.
+* **Screener Stocks Tracking**: Dedicated automation for the custom `screener_stocks.xlsx` list.
 * **Smart Sorting**: Automatically sorts your tracking sheets by Percentage Change (Ascending) to highlight underperforming stocks first.
 * **Dynamic Column Preservation**: Safeguards **ANY** manually added columns (e.g., WatchList, Score, Notes, ResearchDate) during updates. You can add as many custom columns as you like.
 * **Robust Date Handling**: Uses advanced heuristics (via `utils.ts`) to ensure dates (like "12/6/2025") remain stable and aren't converted to Excel serial numbers (e.g., "45997") or shifted by timezones.
@@ -61,6 +61,7 @@ This section explains the purpose and function of the key files in the `test/` d
     3.  **Track 52-Week Highs**: Adds new stocks from the daily report.
     4.  **Update Prices**: Refreshes current prices for all tracked stocks.
     5.  **Sort Results**: Sorts the final list by Percentage Change (Low -> High).
+    6.  **Screener Stocks**: Updates prices and momentum for the `screener_stocks.xlsx` file.
 *   **Key Feature:** Auto-backup prevents data loss.
 
 ### 2. `test/52WeekStocksTrack.spec.ts`
@@ -100,38 +101,29 @@ This section explains the purpose and function of the key files in the `test/` d
 ### 7. `test/utils.ts`
 **Role:** The Fixer (Date Helper).
 *   **Purpose:** A robust utility library for handling Excel data quirks.
-*   **Key Function:** `sanitizeRow` & `formatExcelDate`.
-    *   **Problem Solved**: Excel often stores dates as "General" numbers (e.g., 45997). This converts them back to readable dates ("12/6/2025") using mathematical calculation (`XLSX.SSF`), ensuring 100% stability and no timezone randomness.
+*   **Problem Solved**: Excel often stores dates as "General" numbers (e.g., 45997). This converts them back to readable dates ("12/6/2025") using mathematical calculation (`XLSX.SSF`), ensuring 100% stability and no timezone randomness.
 
-### 8. Specialist Trackers (`test/highRoic...`, `test/bullStock...`, etc.)
-**Role:** Market Niche Specialists.
-*   **Purpose:** Dedicated trackers for specific high-quality stock buckets.
-*   **Files:**
-    - `test/highRoicGrowthMomentum.spec.ts`
-    - `test/bullStockFiiBuy.spec.ts`
-    - `test/qualityGrowthPullback.spec.ts`
-    - `test/qualityGrowthInstSupport.spec.ts`
+### 8. `test/screenerStocks.spec.ts`
+**Role:** Market Niche Specialist.
+*   **Purpose:** Dedicated tracker for your `screener_stocks.xlsx` bucket.
 *   **Features:**
     - Specialized high-price tracking logic.
     - Automatic backup to `screener\Backup` folder.
-    - Preserves all manual columns (`take 1`, `take 2`, etc.).
+    - Preserves all manual columns (`my take`, `Techinical`, `score`, `Justification`, etc.).
     - Automatic sorting by % change.
 
-### 9. `test/SpecialistRunners.ts`
-**Role:** The Specialist Orchestrator.
-*   **Purpose:** Runs all 4 specialist trackers (Bull FII, High ROIC, Quality Pullback, Institutional Support) sequentially with a single command.
 
 ## ▶️ Usage
+
+### Run Screener Stocks Tracker
+```bash
+npx playwright test test/screenerStocks.spec.ts
+```
 
 ### Run the Full Pipeline (Recommended)
 Use the standard runner for master tracking:
 ```bash
 npx ts-node test/SequentialTestRunner.ts
-```
-
-Use the specialist runner for niche screens:
-```bash
-npx ts-node test/SpecialistRunners.ts
 ```
 
 ### Run Individual Steps
