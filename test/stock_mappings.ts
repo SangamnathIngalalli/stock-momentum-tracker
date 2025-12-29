@@ -113,6 +113,19 @@ export const IGNORED_SYMBOLS: string[] = [
     'MOSILVER',
     'MIDCAPADD',
     'SMALLADD',
+    'INFRAIETF',
+    'MOGOLD',
+    'DIVOPPBEES',
+    'GOLDADD',
+    'GROWWEV',
+    'GROWWMETAL',
+    'HDFCQUAL',
+    'LOWVOL',
+    'TNIDETF',
+    'TOP100CASE',
+    'TOP20',
+    'VAL30IETF',
+    'DIVOPPBEES',
 
 
 
@@ -177,6 +190,11 @@ export const IGNORED_SYMBOLS: string[] = [
     'DIVINEHIRA',
     'EXIMROUTES',
     'RUDRA',
+    'KANDARP',
+    'NEUEON',
+    'NORBTEAEXP',
+    'BAGDIGITAL',
+    'NEUEON',
 
 
 
@@ -200,6 +218,12 @@ export const IGNORED_SYMBOLS: string[] = [
     'FWSTC',
     'MIDWESTLTD',
     'WAKEFIT',
+    'ICICIAMC',
+    'BAGDIGITAL',
+    'KSHINTL',
+    'TATACAP',
+    'ICICIAMC',
+
 
 
 
@@ -215,6 +239,12 @@ export const IGNORED_SYMBOLS: string[] = [
     'RMDRIP',
     'Viceroy',
     'VHLTD',
+    'MAANALU',
+    'MAHASTEEL',
+    'TCIFINANCE',
+    'ARVEE',
+    'MAANALU',
+
 
 
 
@@ -226,6 +256,7 @@ export const IGNORED_SYMBOLS: string[] = [
     'DREDGECORP', //low score = 29 ON 12/12/2025
     'RAMCOSYS', //low score = 42 ON 12/12/2025
     'TMCV', //low score = 36 ON 12/12/2025
+    'AEQUS', //low score = 36 ON 29/12/2025
 
 
 
@@ -233,11 +264,13 @@ export const IGNORED_SYMBOLS: string[] = [
 
 
     // 🚨 SECTOR GATE STATUS: ❌ FAIL
-    'JETFREIGHT',
+    'JETFREIGHT', // 13/12/2025
     'NEPTUNE', // 13/12/2025
     'MODINATUR', // 13/12/2025
     'SHEETAL', // 13/12/2025
-    'IDEA',
+    'IDEA', // 13/12/2025
+    'GRMOVER', // 29/12/2025
+    'SALONA',
 
 
 
@@ -374,7 +407,16 @@ export const STOCK_MAPPINGS: Record<string, string> = {
     "FIEMIND": "FIEM INDUSTRIES LIMITED",
     "HINDALCO": "HINDALCO  INDUSTRIES  LTD",
     "TITAN": "TITAN COMPANY LIMITED",
-
+    "BELRISE": "BELRISE INDUSTRIES LTD",
+    "BHARATFORG": "BHARAT FORGE LTD",
+    "GRMOVER": "GRM OVERSEAS LIMITED",
+    "HAPPYFORGE": "HAPPY FORGINGS LIMITED",
+    "MANAKSTEEL": "MANAKSIA STEELS LTD",
+    "MARUTI": "MARUTI SUZUKI INDIA LTD.",
+    "MAXVOLT": "MAXVOLT ENERGY INDUS L",
+    "NMDC": "NMDC LTD.",
+    "UPL": "UPL LIMITED",
+    "ANONDITA": "ANONDITA MEDICARE LIMITED",
 
 
 
